@@ -1,0 +1,18 @@
+{
+  "name": "testing-backend",
+  "version": "1.0.0",
+  "description": "testing backend applications",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "idris",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.2"
+  },
+  "devDependencies": {
+    "jest": "^27.5.0",
+    "jest-extended": "^2.0.0"
+  }
+}
