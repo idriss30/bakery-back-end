@@ -1,5 +1,7 @@
 const fetch = require("isomorphic-fetch");
-const { inventory, app, carts } = require("./app");
+const { app } = require("./app");
+const { carts, addItemToCart } = require("./cartController");
+const { inventory } = require("./inventoryController");
 
 const rootLink = "http://localhost:3000/";
 afterAll(() => app.close());
