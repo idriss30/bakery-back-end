@@ -1,10 +1,8 @@
 const express = require("express");
+const { carts, addItemToCart } = require("./cartController");
+const { inventory } = require("./inventoryController");
 
 const app = express();
-
-// setting up cart and inventory to manage local state
-const carts = new Map();
-const inventory = new Map();
 
 app.get("/carts/:username/items/", (req, res) => {
   const cart = carts.get(req.params.username);
@@ -12,18 +10,13 @@ app.get("/carts/:username/items/", (req, res) => {
 });
 
 app.post("/carts/:username/items/:item", (req, res) => {
-  const { username, item } = req.params;
-
-  const isAvailable = inventory.has(item) && inventory.get(item) > 0;
-
-  if (!isAvailable) {
-    return res.status(400).json({ message: "item was not found" });
+  try {
+    const { username, item } = req.params;
+    const newElement = addItemToCart(username, item);
+    res.json(newElement);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
   }
-  const newItems = (carts.get(username) || []).concat(item);
-  carts.set(username, newItems);
-  inventory.set(item, inventory.get(item) - 1);
-
-  res.json(newItems);
 });
 
 app.delete("/carts/:username/items/:item", (req, res) => {
@@ -38,7 +31,5 @@ app.delete("/carts/:username/items/:item", (req, res) => {
 });
 
 module.exports = {
-  inventory,
   app: app.listen(3000),
-  carts,
 };
