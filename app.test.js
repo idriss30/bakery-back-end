@@ -40,16 +40,14 @@ describe("checking cart features", () => {
 
   test("fetch available user cart", async () => {
     inventory.set("cheesecake", 2);
-    const createCart = await fetch(`${rootLink}carts/idris/items/cheesecake`, {
-      method: "POST",
-    });
+
+    addItemToCart("idris", "cheesecake");
     const getCartResponse = await fetch(`${rootLink}carts/idris/items`, {
       method: "GET",
     });
 
-    expect(createCart.status).toEqual(200);
     expect(getCartResponse.status).toEqual(200);
-    expect(getCartResponse.json()).toEqual(createCart.json());
+    expect(await getCartResponse.json()).toEqual(["cheesecake"]);
     expect(inventory.get("cheesecake")).toEqual(1);
   });
 
