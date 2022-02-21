@@ -1,4 +1,4 @@
-const { carts, addItemToCart } = require("./cartController");
+const { carts, addItemToCart, complyToQty } = require("./cartController");
 const { inventory } = require("./inventoryController");
 const fs = require("fs");
 const os = require("os");
@@ -42,5 +42,20 @@ describe("testing cart logging", () => {
     addItemToCart("test_user", "croissant");
     const fileRes = fs.readFileSync(`${finalPath}`, "utf-8");
     expect(fileRes).toContain(`croissant was added to test_user's cart\n`);
+  });
+});
+
+describe("comply to quantity test", () => {
+  test("checking quantity allowed", () => {
+    carts.set("idris", ["cheesecake", "cheesecake", "danish"]);
+
+    const isQuantityComplying = complyToQty(carts.get("idris"));
+    expect(isQuantityComplying).toBeTrue();
+  });
+
+  test("checking cart with more than allowed qty", () => {
+    carts.set("idris", ["cheesecake", "croissant", "cheesecake", "cheesecake"]);
+    const isQuantityComplying = complyToQty(carts.get("idris"));
+    expect(isQuantityComplying).toBeFalse();
   });
 });
