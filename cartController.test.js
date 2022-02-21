@@ -29,6 +29,23 @@ describe("testing carts function", () => {
     expect(inventory.get("croissant")).toEqual(0);
     expect(carts.get("test_user")).toEqual(adding);
   });
+
+  test("adding more than 3 items", () => {
+    inventory.set("cheesecake", 1);
+    const initialCart = ["cheesecake", "cheesecake", "croissant"];
+    carts.set("idris", initialCart);
+    try {
+      addItemToCart("idris", "cheesecake");
+    } catch (error) {
+      const expectedErr = new Error("can't have more than 2 of the same item");
+      expectedErr.code = 400;
+      expect(error).toEqual(expectedErr);
+    }
+
+    expect(inventory.get("cheesecake")).toEqual(1);
+    expect(carts.get("idris")).toEqual(initialCart);
+    expect.assertions(3);
+  });
 });
 
 describe("testing cart logging", () => {

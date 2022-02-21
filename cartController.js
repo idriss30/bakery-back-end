@@ -6,7 +6,7 @@ const carts = new Map();
 const addItemToCart = (username, item) => {
   const newItems = (carts.get(username) || []).concat(item);
   if (!complyToQty(newItems)) {
-    const limitError = new Error(`can't have more than 2 of the same item `);
+    const limitError = new Error(`can't have more than 2 of the same item`);
     limitError.code = 400;
     throw limitError;
   }
@@ -24,6 +24,7 @@ const complyToQty = (cart) => {
   }, {}); // initialize with empty object
   return Object.values(unitPerItem).every((itemQty) => itemQty < 3);
 };
+
 module.exports = {
   carts,
   addItemToCart,
