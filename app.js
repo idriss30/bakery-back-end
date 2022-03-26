@@ -4,18 +4,24 @@ const { inventory } = require("./inventoryController");
 
 const app = express();
 
+app.use(express.json());
+
 app.get("/carts/:username/items/", (req, res) => {
   const cart = carts.get(req.params.username);
   cart ? res.json(cart) : res.sendStatus(404);
 });
 
-app.post("/carts/:username/items/:item", (req, res) => {
+app.post("/carts/:username/items/", (req, res) => {
+  const { username } = req.params;
+  const { item, quantity } = req.body;
+
   try {
-    const { username, item } = req.params;
-    const newElement = addItemToCart(username, item);
-    res.json(newElement);
+    for (let i = 0; i < quantity; i++) {
+      const newItems = addItemToCart(username, item);
+      res.json(newItems);
+    }
   } catch (error) {
-    res.status(400).json({ message: error.message });
+    res.status(error.code).json({ message: error.message });
   }
 });
 
