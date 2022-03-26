@@ -9,13 +9,17 @@ beforeEach(() => carts.clear());
 
 describe("checking cart features", () => {
   test("adding unavailable items", async () => {
-    await request(app).post("/carts/idris/items/cheesecake").expect(400);
+    await request(app)
+      .post("/carts/idris/items/")
+      .send({ item: "cheesecake", quantity: 2 })
+      .expect(400);
   });
 
   test("adding available items to the cart", async () => {
     inventory.set("cheesecake", 1);
     const addingResponse = await request(app)
-      .post("/carts/idris/items/cheesecake")
+      .post("/carts/idris/items/")
+      .send({ item: "cheesecake", quantity: 1 })
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8"); // can check if header match your expectation
 
