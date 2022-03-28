@@ -1,10 +1,11 @@
-const { app } = require("./app");
-const { carts, addItemToCart } = require("./cartController");
-const { inventory } = require("./inventoryController");
 const request = require("supertest");
-const { response } = require("express");
+const { app } = require("./app");
+const { carts } = require("./cartController");
+const { inventory } = require("./inventoryController");
+const { users, hashedPassword } = require("./authenticationController");
 
 afterAll(() => app.close());
+afterEach(() => users.clear());
 afterEach(() => inventory.clear());
 beforeEach(() => carts.clear());
 
@@ -35,9 +36,9 @@ describe("checking cart features", () => {
     expect(inventory.get("cheesecake")).toEqual(0);
   });
 
-  test("deleting available item in a cart", async () => {
+  test("removing available item in a cart", async () => {
     inventory.set("croissant", 1);
-    addItemToCart("idris", "croissant");
+    carts.set("idris", ["croissant"]);
 
     const deleteItemResponse = await request(app)
       .delete("/carts/idris/items/croissant")
@@ -50,7 +51,41 @@ describe("checking cart features", () => {
       .delete("/carts/idris/items/cheesecake")
       .expect(400);
     expect(await deleteUnvailableResponse.body).toEqual(
-      "item is not in the cart"
+      "cheesecake is not in the cart"
     );
+  });
+});
+
+describe("creating users account", () => {
+  test("create a user", async () => {
+    const createResponse = await request(app)
+      .put("/users/user_test")
+      .send({ email: "test_user@email.org", password: "pass123" })
+      .expect(201)
+      .expect("Content-type", "application/json; charset=utf-8");
+
+    expect(createResponse.body).toEqual({
+      message: "user_test created successfully",
+    });
+    expect(users.get("user_test")).toEqual({
+      email: "test_user@email.org",
+      password: hashedPassword("pass123"),
+    });
+  });
+
+  test("user who already exist", async () => {
+    users.set("test_user", {
+      email: "test@email.com",
+      password: hashedPassword("pass123"),
+    });
+    const rejectUserResponse = await request(app)
+      .put("/users/test_user")
+      .send({ email: "test@email.com", password: "pass123" })
+      .expect(409)
+      .expect("Content-type", "application/json; charset=utf-8");
+
+    expect(rejectUserResponse.body).toEqual({
+      message: "test_user already exist",
+    });
   });
 });
