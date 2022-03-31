@@ -2,7 +2,12 @@ const request = require("supertest");
 const { app } = require("./app");
 const { carts } = require("./cartController");
 const { inventory } = require("./inventoryController");
-const { users, hashedPassword } = require("./authenticationController");
+const {
+  users,
+  hashedPassword,
+  createUserMock,
+  finalAuth,
+} = require("./authenticationController");
 
 afterAll(() => app.close());
 afterEach(() => users.clear());
@@ -10,10 +15,12 @@ afterEach(() => inventory.clear());
 beforeEach(() => carts.clear());
 
 describe("checking cart features", () => {
+  beforeEach(() => createUserMock());
   test("adding unavailable items", async () => {
-    carts.set("idris", []);
+    carts.set("test_user", []);
     const requestResponse = await request(app)
-      .post("/carts/idris/items/")
+      .post("/carts/test_user/items/")
+      .set("authorization", finalAuth)
       .send({ item: "cheesecake", quantity: 2 })
       .expect(400)
       .expect("Content-type", "application/json; charset=utf-8");
@@ -21,13 +28,14 @@ describe("checking cart features", () => {
     expect(await requestResponse.body).toEqual({
       message: "cheesecake is not available",
     });
-    expect(carts.get("idris")).toEqual([]);
+    expect(carts.get("test_user")).toEqual([]);
   });
 
   test("adding available items to the cart", async () => {
     inventory.set("cheesecake", 1);
     const addingResponse = await request(app)
-      .post("/carts/idris/items/")
+      .post("/carts/test_user/items/")
+      .set("authorization", finalAuth)
       .send({ item: "cheesecake", quantity: 1 })
       .expect(200)
       .expect("Content-Type", "application/json; charset=utf-8"); // can check if header match your expectation
@@ -38,17 +46,19 @@ describe("checking cart features", () => {
 
   test("removing available item in a cart", async () => {
     inventory.set("croissant", 1);
-    carts.set("idris", ["croissant"]);
+    carts.set("test_user", ["croissant"]);
 
     const deleteItemResponse = await request(app)
-      .delete("/carts/idris/items/croissant")
+      .delete("/carts/test_user/items/croissant")
+      .set("authorization", finalAuth)
       .expect(200);
     expect(await deleteItemResponse.body).toEqual([]);
   });
 
   test("delete non existant item in the cart", async () => {
     const deleteUnvailableResponse = await request(app)
-      .delete("/carts/idris/items/cheesecake")
+      .delete("/carts/test_user/items/cheesecake")
+      .set("authorization", finalAuth)
       .expect(400);
     expect(await deleteUnvailableResponse.body).toEqual(
       "cheesecake is not in the cart"
