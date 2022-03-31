@@ -8,6 +8,17 @@ const hashedPassword = (password) => {
   hash.update(password);
   return hash.digest("hex");
 };
+const createUserMock = () => {
+  users.set("test_user", {
+    email: "test@email.org",
+    password: hashedPassword("password123"),
+  });
+};
+
+const authorizationHeader = Buffer.from("test_user:password123").toString(
+  "base64"
+);
+const finalAuth = `basic ${authorizationHeader}`;
 
 const credentialsAreValid = (username, password) => {
   if (!users.has(username)) {
@@ -42,4 +53,6 @@ module.exports = {
   hashedPassword,
   credentialsAreValid,
   authenticationMiddleware,
+  createUserMock,
+  finalAuth,
 };
