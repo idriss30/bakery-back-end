@@ -1,11 +1,22 @@
 const express = require("express");
 const { carts, addItemToCart } = require("./cartController");
 const { inventory } = require("./inventoryController");
-const { users, hashedPassword } = require("./authenticationController");
+const {
+  users,
+  hashedPassword,
+  authenticationMiddleware,
+} = require("./authenticationController");
 
 const app = express();
 
 app.use(express.json());
+
+app.use(async (req, res, next) => {
+  if (req.originalUrl.startsWith("/carts")) {
+    return await authenticationMiddleware(req, res, next);
+  }
+  next();
+});
 
 app.put("/users/:username", (req, res) => {
   const username = req.params.username;
