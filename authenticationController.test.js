@@ -4,6 +4,8 @@ const {
   users,
   credentialsAreValid,
   authenticationMiddleware,
+  createUserMock,
+  finalAuth,
 } = require("./authenticationController");
 
 describe("testing passwords", () => {
@@ -61,19 +63,11 @@ describe("authentication middleware", () => {
   });
 
   test("providing valid credentials", async () => {
-    const unhashPassword = "pass123",
-      hashingPassword = hashedPassword(unhashPassword);
-    users.set("test_user", {
-      email: "test@email.com",
-      password: hashingPassword,
-    });
-    const realAuth = Buffer.from(`test_user:${unhashPassword}`).toString(
-      "base64"
-    );
+    createUserMock();
 
     const mockedReq = () => {
       const req = {
-        headers: { authorization: `Basic ${realAuth}` },
+        headers: { authorization: `${finalAuth}` },
       };
 
       return req;
