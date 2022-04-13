@@ -1,78 +1,85 @@
-const { carts, addItemToCart, complyToQty } = require("./cartController");
-const { inventory } = require("./inventoryController");
+const { addItemToCart, getUserId } = require("./cartController");
+const { addItemToInventory } = require("./inventoryController");
 const fs = require("fs");
 const os = require("os");
+const { db } = require("./database/dbConnection");
+const { createUser } = require("./authenticationController");
 
-afterEach(() => inventory.clear());
-afterEach(() => carts.clear());
+afterAll(() => db.destroy());
+
+describe("testing getUserId", () => {
+  beforeEach(() => db("users").truncate());
+  test("provide valid username", async () => {
+    await createUser("test", "123", "hello@test.com");
+    const id = await getUserId("test");
+    expect(id).toEqual(1);
+  });
+
+  test("provide invalid user ", async () => {
+    try {
+      await getUserId("patrick");
+    } catch (error) {
+      const err = new Error("user not found");
+      err.code = 404;
+      expect(error).toEqual(err);
+    }
+  });
+  expect.assertions(1);
+});
 
 describe("testing carts function", () => {
-  test("adding unavailable item ", () => {
-    carts.set("test_user", []);
-    inventory.set("cheesecake", 0);
-
-    try {
-      addItemToCart("test_user", "cheesecake");
-    } catch (e) {
-      const error = new Error("cheesecake is not available");
-      error.code = 400;
-      expect(e).toEqual(error);
-    }
-
-    expect(carts.get("test_user")).toEqual([]);
-  });
-
-  test("adding available items", () => {
-    inventory.set("croissant", 1);
-    const adding = addItemToCart("test_user", "croissant");
-
-    expect(inventory.get("croissant")).toEqual(0);
-    expect(carts.get("test_user")).toEqual(adding);
-  });
-
-  test("adding more than 3 items", () => {
-    inventory.set("cheesecake", 1);
-    const initialCart = ["cheesecake", "cheesecake", "croissant"];
-    carts.set("idris", initialCart);
-    try {
-      addItemToCart("idris", "cheesecake");
-    } catch (error) {
-      const expectedErr = new Error("can't have more than 2 of the same item");
-      expectedErr.code = 400;
-      expect(error).toEqual(expectedErr);
-    }
-
-    expect(inventory.get("cheesecake")).toEqual(1);
-    expect(carts.get("idris")).toEqual(initialCart);
-    expect.assertions(3);
-  });
-});
-
-describe("testing cart logging", () => {
+  beforeEach(() => db("inventory").truncate());
+  beforeEach(() => db("users").truncate());
+  beforeEach(() => db("carts").truncate());
   const finalPath = `${os.tmpdir()}\\logs.txt`;
   beforeEach(() => {
-    fs.writeFileSync(`${finalPath} `, "");
+    fs.writeFileSync(`${finalPath}`, " ");
   });
-  test("log items added to cart", () => {
-    carts.set("test_user", []);
-    inventory.set("croissant", 1);
-    addItemToCart("test_user", "croissant");
+
+  test("adding unavailable item", async () => {
+    const username = "test",
+      email = "test@email.com",
+      password = "123";
+    await createUser(username, password, email);
+    try {
+      await addItemToCart(username, "cheesecake");
+    } catch (error) {
+      const err = new Error("cheesecake is not available");
+      expect(error).toEqual(err);
+    }
+  });
+
+  test("adding available items to the cart", async () => {
+    await createUser("test_user", "123", "email@test.com");
+    await addItemToInventory("cheesecake", 3);
+    const cart = await addItemToCart("test_user", "cheesecake");
+    const cartMockup = [{ userId: 1, itemName: "cheesecake", itemQty: 1 }];
+    const cheesecakeinv = await db("inventory")
+      .select("productQty")
+      .where({ productName: "cheesecake" })
+      .first();
+    expect(cart).toEqual(cartMockup);
+    expect(cheesecakeinv.productQty).toEqual(2);
+  });
+
+  test("adding more than 2 items", async () => {
+    await createUser("test_user", "123", "email@test.com");
+    await addItemToInventory("cheesecake", 3);
+    await db("carts").insert({ userId: 1, itemName: "cheesecake", itemQty: 2 });
+    try {
+      await addItemToCart("test_user", "cheesecake");
+    } catch (error) {
+      const err = new Error("no more than 2 items");
+      expect(error).toEqual(err);
+    }
+  });
+
+  test("log items added to cart", async () => {
+    await createUser("test_user", "123", "email@test.com");
+    await addItemToInventory("croissant", 1);
+    await addItemToCart("test_user", "croissant");
+
     const fileRes = fs.readFileSync(`${finalPath}`, "utf-8");
-    expect(fileRes).toContain(`croissant was added to test_user's cart\n`);
-  });
-});
-
-describe("comply to quantity test", () => {
-  test("checking quantity allowed", () => {
-    carts.set("idris", ["cheesecake", "cheesecake", "danish"]);
-
-    const isQuantityComplying = complyToQty(carts.get("idris"));
-    expect(isQuantityComplying).toBeTrue();
-  });
-
-  test("checking cart with more than allowed qty", () => {
-    carts.set("idris", ["cheesecake", "croissant", "cheesecake", "cheesecake"]);
-    const isQuantityComplying = complyToQty(carts.get("idris"));
-    expect(isQuantityComplying).toBeFalse();
+    expect(fileRes).toContain(`croissant added to test_user cart\n`);
   });
 });
