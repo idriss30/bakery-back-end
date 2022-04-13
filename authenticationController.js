@@ -1,35 +1,34 @@
 // testing middleware
 const crypto = require("crypto");
-
-const users = new Map();
+const { db } = require("./database/dbConnection");
 
 const hashedPassword = (password) => {
   const hash = crypto.createHash("sha256");
   hash.update(password);
   return hash.digest("hex");
 };
-const createUserMock = () => {
-  users.set("test_user", {
-    email: "test@email.org",
-    password: hashedPassword("password123"),
-  });
+
+const createUser = async (username, password, email) => {
+  const isUserExist = await db("users").select().where({ username }).first();
+  if (!isUserExist) {
+    await db("users").insert({
+      username,
+      email,
+      password: hashedPassword(password),
+    });
+    return true;
+  }
+  throw new Error(`${username} already exist`);
 };
 
-const authorizationHeader = Buffer.from("test_user:password123").toString(
-  "base64"
-);
-const finalAuth = `basic ${authorizationHeader}`;
-
-const credentialsAreValid = (username, password) => {
-  if (!users.has(username)) {
-    return false;
-  }
-  const expectedPassword = hashedPassword(password);
-  const savedPassword = users.get(username).password;
-  return expectedPassword === savedPassword;
+const credentialsAreValid = async (username, password) => {
+  const user = await db("users").select("").where({ username }).first();
+  if (!user) return false;
+  return hashedPassword(password) === user.password;
 };
 
 const authenticationMiddleware = async (req, res, next) => {
+  // can be refactored to pass the userId to next()
   try {
     const authHeader = req.headers.authorization;
 
@@ -39,7 +38,8 @@ const authenticationMiddleware = async (req, res, next) => {
     ).toString();
 
     const [username, password] = credentials.split(":");
-    if (!credentialsAreValid(username, password)) {
+    const checkCredentials = await credentialsAreValid(username, password);
+    if (!checkCredentials) {
       throw new Error("credentials are not valid");
     }
   } catch (error) {
@@ -49,10 +49,8 @@ const authenticationMiddleware = async (req, res, next) => {
 };
 
 module.exports = {
-  users,
   hashedPassword,
   credentialsAreValid,
   authenticationMiddleware,
-  createUserMock,
-  finalAuth,
+  createUser,
 };

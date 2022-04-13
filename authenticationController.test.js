@@ -1,14 +1,17 @@
 const crypto = require("crypto");
 const {
   hashedPassword,
-  users,
   credentialsAreValid,
   authenticationMiddleware,
-  createUserMock,
-  finalAuth,
+  createUser,
 } = require("./authenticationController");
+const { db } = require("./database/dbConnection");
 
-describe("testing passwords", () => {
+afterAll(() => db.destroy());
+
+describe("testing users features", () => {
+  beforeEach(() => db("users").truncate());
+
   test("hashing passwords", async () => {
     const passwordToHash = "password_test";
     const hashForPassword = crypto.createHash("sha256");
@@ -18,16 +21,29 @@ describe("testing passwords", () => {
 
     expect(expectedPassword).toEqual(actualPassword);
   });
-});
+  test("create user function", async () => {
+    const createUserRes = await createUser("test", "123", "test@email.com");
+    expect(createUserRes).toBe(true);
+  });
 
-describe("credentialAreValid", () => {
-  test("validating credentials", () => {
-    users.set("test_user", {
-      email: "test@email.org",
-      password: hashedPassword("pass123"),
+  test("existing user ", async () => {
+    await db("users").insert({
+      username: "test",
+      password: "123",
+      email: "email@test.com",
     });
+    try {
+      await createUser("test", "123", "email@test.com");
+    } catch (error) {
+      const err = new Error("test already exist");
+      expect(error).toEqual(err);
+    }
+    expect.assertions(1);
+  });
 
-    const checkCredentials = credentialsAreValid("test_user", "pass123");
+  test("validating credentials (credentialsAreValid)", async () => {
+    await createUser("test", "password123", "test@email.org");
+    const checkCredentials = await credentialsAreValid("test", "password123");
     expect(checkCredentials).toBe(true);
   });
 });
@@ -63,11 +79,11 @@ describe("authentication middleware", () => {
   });
 
   test("providing valid credentials", async () => {
-    createUserMock();
-
+    await createUser("test_user", "password123", "test_user@email.org");
+    const headerAuth = Buffer.from("test_user:password123").toString("base64");
     const mockedReq = () => {
       const req = {
-        headers: { authorization: `${finalAuth}` },
+        headers: { authorization: `Basic ${headerAuth}` },
       };
 
       return req;
