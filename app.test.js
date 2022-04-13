@@ -1,101 +1,90 @@
 const request = require("supertest");
 const { app } = require("./app");
-const { carts } = require("./cartController");
-const { inventory } = require("./inventoryController");
-const {
-  users,
-  hashedPassword,
-  createUserMock,
-  finalAuth,
-} = require("./authenticationController");
+const { createUser } = require("./authenticationController");
+const { addItemToCart, getUserId } = require("./cartController");
+const { closeConnection, db } = require("./database/dbConnection");
+const { addItemToInventory } = require("./inventoryController");
 
+afterAll(() => db.destroy());
 afterAll(() => app.close());
-afterEach(() => users.clear());
-afterEach(() => inventory.clear());
-beforeEach(() => carts.clear());
+afterEach(() => db("users").truncate());
 
-describe("checking cart features", () => {
-  beforeEach(() => createUserMock());
-  test("adding unavailable items", async () => {
-    carts.set("test_user", []);
-    const requestResponse = await request(app)
-      .post("/carts/test_user/items/")
-      .set("authorization", finalAuth)
-      .send({ item: "cheesecake", quantity: 2 })
-      .expect(400)
-      .expect("Content-type", "application/json; charset=utf-8");
+describe("testing user features", () => {
+  beforeEach(() => db("users").truncate());
 
-    expect(await requestResponse.body).toEqual({
-      message: "cheesecake is not available",
-    });
-    expect(carts.get("test_user")).toEqual([]);
-  });
-
-  test("adding available items to the cart", async () => {
-    inventory.set("cheesecake", 1);
-    const addingResponse = await request(app)
-      .post("/carts/test_user/items/")
-      .set("authorization", finalAuth)
-      .send({ item: "cheesecake", quantity: 1 })
-      .expect(200)
-      .expect("Content-Type", "application/json; charset=utf-8"); // can check if header match your expectation
-
-    expect(await addingResponse.body).toEqual(["cheesecake"]);
-    expect(inventory.get("cheesecake")).toEqual(0);
-  });
-
-  test("removing available item in a cart", async () => {
-    inventory.set("croissant", 1);
-    carts.set("test_user", ["croissant"]);
-
-    const deleteItemResponse = await request(app)
-      .delete("/carts/test_user/items/croissant")
-      .set("authorization", finalAuth)
-      .expect(200);
-    expect(await deleteItemResponse.body).toEqual([]);
-  });
-
-  test("delete non existant item in the cart", async () => {
-    const deleteUnvailableResponse = await request(app)
-      .delete("/carts/test_user/items/cheesecake")
-      .set("authorization", finalAuth)
-      .expect(400);
-    expect(await deleteUnvailableResponse.body).toEqual(
-      "cheesecake is not in the cart"
-    );
-  });
-});
-
-describe("creating users account", () => {
-  test("create a user", async () => {
-    const createResponse = await request(app)
-      .put("/users/user_test")
-      .send({ email: "test_user@email.org", password: "pass123" })
+  test("create valid user Route ", async () => {
+    const userResponse = await request(app)
+      .put("/users/test")
+      .send({ email: "test@email.com", password: "pass123" })
       .expect(201)
       .expect("Content-type", "application/json; charset=utf-8");
 
-    expect(createResponse.body).toEqual({
-      message: "user_test created successfully",
-    });
-    expect(users.get("user_test")).toEqual({
-      email: "test_user@email.org",
-      password: hashedPassword("pass123"),
-    });
+    expect(userResponse.body).toEqual({ message: "test created successfully" });
   });
 
-  test("user who already exist", async () => {
-    users.set("test_user", {
-      email: "test@email.com",
-      password: hashedPassword("pass123"),
-    });
-    const rejectUserResponse = await request(app)
-      .put("/users/test_user")
-      .send({ email: "test@email.com", password: "pass123" })
+  test("create user that already exist", async () => {
+    const username = "test",
+      password = "123",
+      email = "email@test.org";
+    await createUser(username, password, email);
+    const createExistingUserRequest = await request(app)
+      .put(`/users/${username}`)
+      .send({ email, password })
       .expect(409)
       .expect("Content-type", "application/json; charset=utf-8");
 
-    expect(rejectUserResponse.body).toEqual({
-      message: "test_user already exist",
+    expect(createExistingUserRequest.body).toEqual({
+      message: "test already exist",
     });
+  });
+});
+
+describe("testing cart functionnalities", () => {
+  const authHeader = Buffer.from("test_user:123").toString("base64"),
+    finalAuth = `basic ${authHeader}`;
+
+  beforeEach(() => db("carts").truncate());
+  beforeEach(() => db("users").truncate());
+  beforeEach(() => db("inventory").truncate());
+
+  test("add items cart routes", async () => {
+    await addItemToInventory("bread", 2);
+    await createUser("test_user", "123", "test@email.org");
+    const cartMock = [{ userId: 1, itemName: "bread", itemQty: 2 }];
+    const addResponse = await request(app)
+      .post("/carts/test_user/items/")
+      .set("authorization", finalAuth)
+      .send({ item: "bread", quantity: 2 })
+      .expect(201)
+      .expect("Content-type", "application/json; charset=utf-8");
+
+    expect(addResponse.body).toEqual(cartMock);
+  });
+
+  test("get valid user cart", async () => {
+    await addItemToInventory("croissant", 1);
+    await createUser("test_user", "123", "test@email.org");
+    await addItemToCart("test_user", "croissant");
+    const mockRes = [{ userId: 1, itemName: "croissant", itemQty: 1 }];
+    const cart = await request(app)
+      .get("/carts/test_user/items/")
+      .set("authorization", finalAuth)
+      .expect(200)
+      .expect("Content-type", "application/json; charset=utf-8");
+
+    expect(cart.body).toEqual(mockRes);
+  });
+
+  test("delete item from cart", async () => {
+    await addItemToInventory("cheesecake", 1);
+    await createUser("test_user", "123", "test@email.org");
+    await addItemToCart("test_user", "cheesecake");
+
+    const deleteRes = await request(app)
+      .del("/carts/test_user/items/cheesecake")
+      .set("authorization", finalAuth)
+      .expect(400);
+
+    expect(deleteRes.body).toEqual([]);
   });
 });
