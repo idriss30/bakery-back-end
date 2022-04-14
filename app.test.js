@@ -1,17 +1,13 @@
 const request = require("supertest");
 const { app } = require("./app");
-const { createUser } = require("./authenticationController");
-const { addItemToCart, getUserId } = require("./cartController");
-const { closeConnection, db } = require("./database/dbConnection");
+const { user: globalUser } = require("./userUtils");
+const { addItemToCart } = require("./cartController");
+
 const { addItemToInventory } = require("./inventoryController");
 
-afterAll(() => db.destroy());
 afterAll(() => app.close());
-afterEach(() => db("users").truncate());
 
 describe("testing user features", () => {
-  beforeEach(() => db("users").truncate());
-
   test("create valid user Route ", async () => {
     const userResponse = await request(app)
       .put("/users/test")
@@ -23,37 +19,27 @@ describe("testing user features", () => {
   });
 
   test("create user that already exist", async () => {
-    const username = "test",
-      password = "123",
-      email = "email@test.org";
-    await createUser(username, password, email);
-    const createExistingUserRequest = await request(app)
-      .put(`/users/${username}`)
-      .send({ email, password })
-      .expect(409)
-      .expect("Content-type", "application/json; charset=utf-8");
-
-    expect(createExistingUserRequest.body).toEqual({
-      message: "test already exist",
-    });
+    try {
+      await request(app)
+        .put(`/users/${globalUser.username}`)
+        .send({ email: globalUser.email, password: globalUser.password })
+        .expect(409)
+        .expect("Content-type", "application/json; charset=utf-8");
+    } catch (error) {
+      expect.assertions(1);
+      expect(error.message).toContain("SQLITE_CONSTRAINT");
+    }
   });
 });
 
 describe("testing cart functionnalities", () => {
-  const authHeader = Buffer.from("test_user:123").toString("base64"),
-    finalAuth = `basic ${authHeader}`;
-
-  beforeEach(() => db("carts").truncate());
-  beforeEach(() => db("users").truncate());
-  beforeEach(() => db("inventory").truncate());
-
   test("add items cart routes", async () => {
     await addItemToInventory("bread", 2);
-    await createUser("test_user", "123", "test@email.org");
-    const cartMock = [{ userId: 1, itemName: "bread", itemQty: 2 }];
+
+    const cartMock = [{ userId: globalUser.id, itemName: "bread", itemQty: 2 }];
     const addResponse = await request(app)
-      .post("/carts/test_user/items/")
-      .set("authorization", finalAuth)
+      .post(`/carts/${globalUser.username}/items/`)
+      .set("authorization", globalUser.authHeader)
       .send({ item: "bread", quantity: 2 })
       .expect(201)
       .expect("Content-type", "application/json; charset=utf-8");
@@ -63,12 +49,12 @@ describe("testing cart functionnalities", () => {
 
   test("get valid user cart", async () => {
     await addItemToInventory("croissant", 1);
-    await createUser("test_user", "123", "test@email.org");
-    await addItemToCart("test_user", "croissant");
+
+    await addItemToCart(globalUser.username, "croissant");
     const mockRes = [{ userId: 1, itemName: "croissant", itemQty: 1 }];
     const cart = await request(app)
       .get("/carts/test_user/items/")
-      .set("authorization", finalAuth)
+      .set("authorization", globalUser.authHeader)
       .expect(200)
       .expect("Content-type", "application/json; charset=utf-8");
 
@@ -77,12 +63,11 @@ describe("testing cart functionnalities", () => {
 
   test("delete item from cart", async () => {
     await addItemToInventory("cheesecake", 1);
-    await createUser("test_user", "123", "test@email.org");
-    await addItemToCart("test_user", "cheesecake");
+    await addItemToCart(globalUser.username, "cheesecake");
 
     const deleteRes = await request(app)
-      .del("/carts/test_user/items/cheesecake")
-      .set("authorization", finalAuth)
+      .del(`/carts/${globalUser.username}/items/cheesecake`)
+      .set("authorization", globalUser.authHeader)
       .expect(400);
 
     expect(deleteRes.body).toEqual([]);
