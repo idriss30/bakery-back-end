@@ -4,10 +4,7 @@ const {
   removeFromInventory,
 } = require("./inventoryController");
 
-afterAll(() => db.destroy());
-
 describe("checking removeFromInventory", () => {
-  beforeEach(() => db("inventory").truncate());
   test("remove available item  ", async () => {
     await addItemToInventory("cheesecake", 2);
     await removeFromInventory("cheesecake");
@@ -39,7 +36,6 @@ describe("checking removeFromInventory", () => {
   });
 });
 describe("adding items to inventory", () => {
-  beforeEach(() => db("inventory").truncate());
   test("check insert part of function", async () => {
     await addItemToInventory("cheesecake", 2);
     const checkCheeseInventory = await db("inventory")
