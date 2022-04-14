@@ -1,10 +1,8 @@
 const express = require("express");
 const { addItemToCart, getUserId } = require("./cartController");
 const { addItemToInventory } = require("./inventoryController");
-const {
-  authenticationMiddleware,
-  createUser,
-} = require("./authenticationController");
+const { authenticationMiddleware } = require("./authenticationController");
+
 const { db } = require("./database/dbConnection");
 
 const app = express();
@@ -22,8 +20,12 @@ app.put("/users/:username", async (req, res) => {
   const username = req.params.username;
   const { email, password } = req.body;
   try {
-    const userResponse = await createUser(username, password, email);
-    if (userResponse == true) {
+    const userResponse = await db("users").insert({
+      username,
+      password,
+      email,
+    });
+    if (userResponse) {
       res.status(201).json({ message: `${username} created successfully` });
     }
   } catch (error) {
