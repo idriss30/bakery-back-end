@@ -8,19 +8,6 @@ const hashedPassword = (password) => {
   return hash.digest("hex");
 };
 
-const createUser = async (username, password, email) => {
-  const isUserExist = await db("users").select().where({ username }).first();
-  if (!isUserExist) {
-    await db("users").insert({
-      username,
-      email,
-      password: hashedPassword(password),
-    });
-    return true;
-  }
-  throw new Error(`${username} already exist`);
-};
-
 const credentialsAreValid = async (username, password) => {
   const user = await db("users").select("").where({ username }).first();
   if (!user) return false;
@@ -52,5 +39,4 @@ module.exports = {
   hashedPassword,
   credentialsAreValid,
   authenticationMiddleware,
-  createUser,
 };
