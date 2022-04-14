@@ -6,17 +6,11 @@ const {
 const logger = require("./logger");
 
 const getUserId = async (username) => {
-  const fetchUser = await db
-    .select("")
-    .from("users")
-    .where({ username })
-    .first();
-  if (!fetchUser) {
-    const userError = new Error("user not found");
-    userError.code = 404;
-    throw userError;
+  const userId = await db.select().from("users").where({ username }).first();
+  if (userId.id) {
+    return userId.id;
   }
-  return fetchUser.id;
+  throw new Error(`${username} not found`);
 };
 
 const addItemToCart = async (username, itemName) => {
