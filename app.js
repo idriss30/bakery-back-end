@@ -2,6 +2,8 @@ const express = require("express");
 const { addItemToCart, getUserId } = require("./cartController");
 const { addItemToInventory } = require("./inventoryController");
 const { authenticationMiddleware } = require("./authenticationController");
+const fetch = require("isomorphic-fetch");
+require("dotenv").config();
 
 const { db } = require("./database/dbConnection");
 
@@ -14,6 +16,32 @@ app.use(async (req, res, next) => {
     return await authenticationMiddleware(req, res, next);
   }
   next();
+});
+
+app.get("/inventory/:itemName/", async (req, res) => {
+  const itemName = req.params.itemName;
+  const productInfo = await db
+    .select("")
+    .from("inventory")
+    .where({ productName: itemName })
+    .first();
+
+  const recipeFetch = await fetch(
+    `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${itemName}&number=10&${process.env.API_KEY}`,
+    { method: "GET" }
+  );
+
+  const {
+    title,
+    missedIngredientCount,
+    usedIngredients: recipes,
+  } = await recipeFetch.json();
+
+  res.status(200).json({
+    ...productInfo,
+    info: `info recipe ${title}, ${missedIngredientCount}`,
+    recipes,
+  });
 });
 
 app.put("/users/:username", async (req, res) => {
