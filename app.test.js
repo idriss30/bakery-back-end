@@ -6,6 +6,7 @@ const { db } = require("./database/dbConnection");
 const { addItemToInventory } = require("./inventoryController");
 const fetch = require("isomorphic-fetch");
 require("dotenv").config();
+const { when } = require("jest-when"); // determine what the mock should do based on input given
 
 jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
 
@@ -101,11 +102,13 @@ describe("fetch inventory items", () => {
         },
       ],
     };
-
     const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${cheese.productName}&number=10&${process.env.API_KEY}`;
-    fetch.mockResolvedValue({
-      json: jest.fn().mockResolvedValue(fakeApiResponse),
-    });
+    fetch.mockRejectedValue(" was not called with proper url"); // caused the fetch from isomorphic fetch to be rejected;
+    when(fetch)
+      .calledWith(url, { method: "GET" })
+      .mockResolvedValue({
+        json: jest.fn().mockResolvedValue(fakeApiResponse),
+      });
 
     const fetchInventoryItem = await request(app)
       .get(`/inventory/${cheese.productName}/`)
@@ -117,7 +120,7 @@ describe("fetch inventory items", () => {
       info: `info recipe ${fakeApiResponse.title}, ${fakeApiResponse.missedIngredientCount}`,
       recipes: fakeApiResponse.usedIngredients,
     });
-    expect(fetch).toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledWith(url, { method: "GET" });
+    /*  expect(fetch).toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(url, { method: "GET" }); */
   });
 });
