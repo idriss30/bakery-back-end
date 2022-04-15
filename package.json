@@ -19,6 +19,8 @@
   "devDependencies": {
     "jest": "^27.5.1",
     "jest-extended": "^2.0.0",
+    "jest-when": "^3.5.1",
+    "nock": "^13.2.4",
     "supertest": "^6.2.2"
   }
 }
