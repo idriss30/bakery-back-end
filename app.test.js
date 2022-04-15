@@ -2,12 +2,17 @@ const request = require("supertest");
 const { app } = require("./app");
 const { user: globalUser } = require("./userUtils");
 const { addItemToCart } = require("./cartController");
-
+const { db } = require("./database/dbConnection");
 const { addItemToInventory } = require("./inventoryController");
+const fetch = require("isomorphic-fetch");
+require("dotenv").config();
+
+jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
 
 afterAll(() => app.close());
 
 describe("testing user features", () => {
+  //
   test("create valid user Route ", async () => {
     const userResponse = await request(app)
       .put("/users/test")
@@ -71,5 +76,48 @@ describe("testing cart functionnalities", () => {
       .expect(400);
 
     expect(deleteRes.body).toEqual([]);
+  });
+});
+
+describe("fetch inventory items", () => {
+  const cheese = { productName: "cheese", productQty: 2 };
+  const chocolate = { productName: "chocolate", productQty: 1 };
+
+  beforeEach(async () => {
+    await db("inventory").insert([cheese, chocolate]);
+  });
+
+  test("can fetch an item from inventory", async () => {
+    const fakeApiResponse = {
+      title: "parmesan wafers",
+      missedIngredientCount: 1,
+      usedIngredients: [
+        {
+          aisle: "Cheese",
+          name: "parmesan",
+          original: "80g freshly grated parmesan (or vegetarian alternative)",
+          originalName: "freshly grated parmesan (or vegetarian alternative)",
+          meta: ["freshly grated", "(or vegetarian alternative)"],
+        },
+      ],
+    };
+
+    const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${cheese.productName}&number=10&${process.env.API_KEY}`;
+    fetch.mockResolvedValue({
+      json: jest.fn().mockResolvedValue(fakeApiResponse),
+    });
+
+    const fetchInventoryItem = await request(app)
+      .get(`/inventory/${cheese.productName}/`)
+      .expect(200)
+      .expect("Content-type", "application/json; charset=utf-8");
+
+    expect(fetchInventoryItem.body).toEqual({
+      ...cheese,
+      info: `info recipe ${fakeApiResponse.title}, ${fakeApiResponse.missedIngredientCount}`,
+      recipes: fakeApiResponse.usedIngredients,
+    });
+    expect(fetch).toHaveBeenCalled();
+    expect(fetch).toHaveBeenCalledWith(url, { method: "GET" });
   });
 });
