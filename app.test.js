@@ -7,8 +7,9 @@ const { addItemToInventory } = require("./inventoryController");
 const fetch = require("isomorphic-fetch");
 require("dotenv").config();
 const { when } = require("jest-when"); // determine what the mock should do based on input given
+const nock = require("nock");
 
-jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
+//jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
 
 afterAll(() => app.close());
 
@@ -88,6 +89,8 @@ describe("fetch inventory items", () => {
     await db("inventory").insert([cheese, chocolate]);
   });
 
+  beforeEach(() => nock.cleanAll());
+
   test("can fetch an item from inventory", async () => {
     const fakeApiResponse = {
       title: "parmesan wafers",
@@ -102,13 +105,22 @@ describe("fetch inventory items", () => {
         },
       ],
     };
-    const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${cheese.productName}&number=10&${process.env.API_KEY}`;
-    fetch.mockRejectedValue(" was not called with proper url"); // caused the fetch from isomorphic fetch to be rejected;
+    const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${cheese.productName}&number=10&apiKey=${process.env.API_KEY}`;
+    /*  fetch.mockRejectedValue(" was not called with proper url"); // caused the fetch from isomorphic fetch to be rejected;
     when(fetch)
       .calledWith(url, { method: "GET" })
       .mockResolvedValue({
         json: jest.fn().mockResolvedValue(fakeApiResponse),
-      });
+      }); */
+
+    nock("https://api.spoonacular.com/recipes")
+      .get("/findByIngredients")
+      .query({
+        ingredients: cheese.productName,
+        number: 10,
+        apiKey: process.env.API_KEY,
+      })
+      .reply(200, fakeApiResponse);
 
     const fetchInventoryItem = await request(app)
       .get(`/inventory/${cheese.productName}/`)
@@ -120,7 +132,5 @@ describe("fetch inventory items", () => {
       info: `info recipe ${fakeApiResponse.title}, ${fakeApiResponse.missedIngredientCount}`,
       recipes: fakeApiResponse.usedIngredients,
     });
-    /*  expect(fetch).toHaveBeenCalled();
-    expect(fetch).toHaveBeenCalledWith(url, { method: "GET" }); */
   });
 });

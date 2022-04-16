@@ -27,7 +27,7 @@ app.get("/inventory/:itemName/", async (req, res) => {
     .first();
 
   const recipeFetch = await fetch(
-    `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${itemName}&number=10&${process.env.API_KEY}`,
+    `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${itemName}&number=10&apiKey=${process.env.API_KEY}`,
     { method: "GET" }
   );
 
