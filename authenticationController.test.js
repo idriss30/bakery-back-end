@@ -4,7 +4,7 @@ const {
   credentialsAreValid,
   authenticationMiddleware,
 } = require("./authenticationController");
-const { db } = require("./database/dbConnection");
+
 const { user: globalUser } = require("./userUtils");
 
 describe("testing users features", () => {
