@@ -4,9 +4,9 @@ const { user: globalUser } = require("./userUtils");
 const { addItemToCart } = require("./cartController");
 const { db } = require("./database/dbConnection");
 const { addItemToInventory } = require("./inventoryController");
-const fetch = require("isomorphic-fetch");
+
 require("dotenv").config();
-const { when } = require("jest-when"); // determine what the mock should do based on input given
+//const { when } = require("jest-when"); // determine what the mock should do based on input given
 const nock = require("nock");
 
 //jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
@@ -90,6 +90,12 @@ describe("fetch inventory items", () => {
   });
 
   beforeEach(() => nock.cleanAll());
+  afterEach(() => {
+    if (!nock.isDone()) {
+      nock.cleanAll();
+      throw new Error("some endpoints did not received a request");
+    }
+  });
 
   test("can fetch an item from inventory", async () => {
     const fakeApiResponse = {
@@ -105,7 +111,7 @@ describe("fetch inventory items", () => {
         },
       ],
     };
-    const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${cheese.productName}&number=10&apiKey=${process.env.API_KEY}`;
+    // const url = `https://api.spoonacular.com/recipes/findByIngredients?ingredients=${cheese.productName}&number=10&apiKey=${process.env.API_KEY}`;
     /*  fetch.mockRejectedValue(" was not called with proper url"); // caused the fetch from isomorphic fetch to be rejected;
     when(fetch)
       .calledWith(url, { method: "GET" })
