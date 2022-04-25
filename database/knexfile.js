@@ -7,6 +7,7 @@ module.exports = {
     useNullAsDefault: true,
     migrations: { directory: path.join(__dirname, "/migrations") },
   },
+
   test: {
     client: "sqlite3",
     connection: { filename: path.join(__dirname, "./test.sqlite") },
