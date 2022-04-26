@@ -12,6 +12,9 @@ const nock = require("nock");
 //jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
 
 afterAll(() => app.close());
+beforeAll(async () => {
+  await db.migrate.latest();
+});
 
 describe("testing user features", () => {
   //

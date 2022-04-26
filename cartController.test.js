@@ -5,6 +5,10 @@ const os = require("os");
 const { db } = require("./database/dbConnection");
 const { user: globalUser } = require("./userUtils");
 
+beforeAll(async () => {
+  await db.migrate.latest();
+});
+
 describe("testing carts function", () => {
   const finalPath = `${os.tmpdir()}\\logs.txt`;
   beforeEach(() => {

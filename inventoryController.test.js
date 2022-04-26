@@ -4,6 +4,10 @@ const {
   removeFromInventory,
 } = require("./inventoryController");
 
+beforeAll(async () => {
+  await db.migrate.latest();
+});
+
 describe("checking removeFromInventory", () => {
   test("remove available item  ", async () => {
     await addItemToInventory("cheesecake", 2);

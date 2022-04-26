@@ -5,6 +5,12 @@ const {
   authenticationMiddleware,
 } = require("./authenticationController");
 
+const { db } = require("./database/dbConnection");
+
+beforeAll(async () => {
+  await db.migrate.latest();
+});
+
 const { user: globalUser } = require("./userUtils");
 
 describe("testing users features", () => {
