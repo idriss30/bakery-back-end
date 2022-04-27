@@ -45,8 +45,6 @@ describe("testing user features", () => {
 describe("testing cart functionnalities", () => {
   test("add items cart routes", async () => {
     await addItemToInventory("bread", 2);
-
-    const cartMock = [{ userId: globalUser.id, itemName: "bread", itemQty: 2 }];
     const addResponse = await request(app)
       .post(`/carts/${globalUser.username}/items/`)
       .set("authorization", globalUser.authHeader)
@@ -54,20 +52,25 @@ describe("testing cart functionnalities", () => {
       .expect(201)
       .expect("Content-type", "application/json; charset=utf-8");
 
-    expect(addResponse.body).toEqual(cartMock);
+    const cart = await db("carts").select("").where({ userId: globalUser.id });
+
+    expect(addResponse.body).toEqual(cart);
   });
 
   test("get valid user cart", async () => {
     await addItemToInventory("croissant", 1);
 
     await addItemToCart(globalUser.username, "croissant");
-    const mockRes = [{ userId: 1, itemName: "croissant", itemQty: 1 }];
+
     const cart = await request(app)
       .get("/carts/test_user/items/")
       .set("authorization", globalUser.authHeader)
       .expect(200)
       .expect("Content-type", "application/json; charset=utf-8");
 
+    const mockRes = await db("carts")
+      .select("")
+      .where({ userId: globalUser.id });
     expect(cart.body).toEqual(mockRes);
   });
 
