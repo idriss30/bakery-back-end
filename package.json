@@ -17,6 +17,7 @@
     "sqlite3": "^5.0.3"
   },
   "devDependencies": {
+    "@sinonjs/fake-timers": "github:sinonjs/fake-timers",
     "jest": "^27.5.1",
     "jest-extended": "^2.0.0",
     "jest-when": "^3.5.1",
