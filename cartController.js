@@ -13,6 +13,32 @@ const getUserId = async (username) => {
   throw new Error(`${username} not found`);
 };
 
+const hoursInMS = (n) => 3600 * 1000 * n;
+
+const removeStaleItems = async () => {
+  const fourHoursAgo = new Date(Date.now() - hoursInMS(4)).toISOString();
+
+  const staleItems = await db
+    .select()
+    .from("carts")
+    .where("updated_At", "<", fourHoursAgo);
+
+  if (staleItems.length === 0) return;
+  const staleItemsUpdate = staleItems.map((item) => {
+    return addItemToInventory(item.itemName, item.itemQty);
+  });
+
+  await Promise.all(staleItemsUpdate);
+
+  const staleItemsTuples = staleItems.map((item) => [
+    item.itemName,
+    item.userId,
+  ]);
+  await db("carts").del().whereIn(["itemName", "userId"], staleItemsTuples);
+};
+
+const monitorStaleItems = () => setInterval(removeStaleItems, hoursInMS(2));
+
 const addItemToCart = async (username, itemName) => {
   await removeFromInventory(itemName);
   const userId = await getUserId(username);
@@ -21,10 +47,18 @@ const addItemToCart = async (username, itemName) => {
     .where({ userId, itemName })
     .first();
   if (checkItem === undefined) {
-    await db("carts").insert({ userId, itemName, itemQty: 1 });
+    await db("carts").insert({
+      userId,
+      itemName,
+      itemQty: 1,
+      updated_At: new Date().toISOString(),
+    });
   } else {
     if (checkItem.itemQty + 1 < 3) {
-      await db("carts").increment("itemQty").where({ userId, itemName });
+      await db("carts")
+        .increment("itemQty")
+        .update({ updated_At: new Date().toISOString() })
+        .where({ userId, itemName });
     } else if (checkItem.itemQty + 1 > 3) {
       await addItemToInventory(itemName, 1);
       const limitErr = new Error("no more than 3 items");
@@ -40,4 +74,5 @@ const addItemToCart = async (username, itemName) => {
 module.exports = {
   addItemToCart,
   getUserId,
+  monitorStaleItems,
 };
