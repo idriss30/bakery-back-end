@@ -1,7 +1,8 @@
-const { addItemToCart, monitorStaleItems } = require("./cartController");
-const { addItemToInventory } = require("./inventoryController");
+const FakeTimers = require("@sinonjs/fake-timers");
 const fs = require("fs");
 const os = require("os");
+const { addItemToCart, monitorStaleItems } = require("./cartController");
+const { addItemToInventory } = require("./inventoryController");
 const { db } = require("./database/dbConnection");
 const { user: globalUser } = require("./userUtils");
 
@@ -58,34 +59,51 @@ describe("testing carts function", () => {
 });
 
 describe("times functionnalities", () => {
-  const waitInMs = (ms) => {
-    return new Promise((resolve) => setTimeout(resolve, ms));
-  };
-
   const hoursInMs = (n) => 3600 * 1000 * n;
 
-  let timer;
+  let clock;
+  beforeEach(() => {
+    clock = FakeTimers.install(); // replace real time related function and return a clock object
+  });
+
+  //restore original timer method after the test
   afterEach(() => {
-    if (timer) clearTimeout(timer);
+    clock = clock.uninstall();
   });
 
   test("removing stales items", async () => {
     await addItemToInventory("cheesecake", 2);
     await addItemToCart(globalUser.username, "cheesecake");
-    await waitInMs(hoursInMs(4));
+    clock.tick(hoursInMs(4));
     timer = monitorStaleItems();
-    await waitInMs(hoursInMs(2));
+    clock.tick(hoursInMs(2)); // move the clock forward by a number of ms
 
-    const cartContent = await db("carts")
-      .select("")
-      .where({ userId: globalUser.id });
-    expect(cartContent).toEqual([]);
+    const checkFinalcontent = async () => {
+      const cartContent = await db("carts")
+        .select("")
+        .where({ userId: globalUser.id });
+      try {
+        expect(cartContent).toEqual([]);
+      } catch (error) {
+        await checkFinalcontent();
+      }
+    };
 
-    const cheeseInventory = await db("inventory")
-      .select("")
-      .where("productName", "cheesecake");
-    expect(cheeseInventory).toEqual([
-      { productName: "cheesecake", productQty: 2 },
-    ]);
+    await checkFinalcontent();
+
+    const checkInventoryContent = async () => {
+      const cheeseInventory = await db("inventory")
+        .select("")
+        .where("productName", "cheesecake");
+      try {
+        expect(cheeseInventory).toEqual([
+          { productName: "cheesecake", productQty: 2 },
+        ]);
+      } catch (error) {
+        await checkInventoryContent();
+      }
+    };
+
+    await checkInventoryContent();
   });
 });
