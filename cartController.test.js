@@ -62,6 +62,27 @@ describe("times functionnalities", () => {
   const hoursInMs = (n) => 3600 * 1000 * n;
 
   let clock;
+
+  const retryMechanismFunc = async (fn) => {
+    const jestAssertionError = (() => {
+      try {
+        expect(false).toBe(true);
+      } catch (error) {
+        return error.constructor;
+      }
+    })();
+
+    try {
+      await fn();
+    } catch (error) {
+      if (error.constructor === jestAssertionError) {
+        await retryMechanismFunc(fn);
+      } else {
+        throw error;
+      }
+    }
+  };
+
   beforeEach(() => {
     clock = FakeTimers.install(); // replace real time related function and return a clock object
   });
@@ -78,32 +99,21 @@ describe("times functionnalities", () => {
     timer = monitorStaleItems();
     clock.tick(hoursInMs(2)); // move the clock forward by a number of ms
 
-    const checkFinalcontent = async () => {
+    await retryMechanismFunc(async () => {
       const cartContent = await db("carts")
         .select("")
         .where({ userId: globalUser.id });
-      try {
-        expect(cartContent).toEqual([]);
-      } catch (error) {
-        await checkFinalcontent();
-      }
-    };
+      expect(cartContent).toEqual([]);
+    });
 
-    await checkFinalcontent();
-
-    const checkInventoryContent = async () => {
+    await retryMechanismFunc(async () => {
       const cheeseInventory = await db("inventory")
         .select("")
         .where("productName", "cheesecake");
-      try {
-        expect(cheeseInventory).toEqual([
-          { productName: "cheesecake", productQty: 2 },
-        ]);
-      } catch (error) {
-        await checkInventoryContent();
-      }
-    };
 
-    await checkInventoryContent();
+      expect(cheeseInventory).toEqual([
+        { productName: "cheesecake", productQty: 2 },
+      ]);
+    });
   });
 });
