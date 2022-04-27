@@ -9,7 +9,7 @@ require("dotenv").config();
 //const { when } = require("jest-when"); // determine what the mock should do based on input given
 const nock = require("nock");
 
-//jest.mock("isomorphic-fetch"); // mock isonmorphic fetch to avoid sending request to the api
+//jest.mock("isomorphic-fetch"); // mock isomorphic fetch to avoid sending request to the api
 
 afterAll(() => app.close());
 beforeAll(async () => {
