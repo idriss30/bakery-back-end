@@ -76,6 +76,7 @@ describe("times functionnalities", () => {
       await fn();
     } catch (error) {
       if (error.constructor === jestAssertionError) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
         await retryMechanismFunc(fn);
       } else {
         throw error;
@@ -84,7 +85,7 @@ describe("times functionnalities", () => {
   };
 
   beforeEach(() => {
-    clock = FakeTimers.install(); // replace real time related function and return a clock object
+    clock = FakeTimers.install({ toFake: ["Date", "setInterval"] }); // replace real time related function and return a clock object
   });
 
   //restore original timer method after the test
