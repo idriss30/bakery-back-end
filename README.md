@@ -17,4 +17,4 @@ git clone https://github.com/idriss30/bakery-back-end.git
 npm run test 
 npm run test --coverage
 
-Feel free to submit a pull request if you believe there is a better way to tackle a specific task.
+
